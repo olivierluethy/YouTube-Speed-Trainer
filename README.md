@@ -8,6 +8,7 @@ A Chrome extension that helps you gradually train yourself to watch YouTube vide
 - **Custom Increments**: Choose preset values (0.05, 0.10, 0.20) or enter any custom value
 - **Keyboard Shortcuts**: Control speed instantly without opening the popup
 - **Visual Progress Bar**: See your progress toward the next speed level
+- **Speed Drops**: When you manually slow down, the extension remembers and shows your biggest speed drops
 - **Instant Speed Control**: Adjust speed anytime via the popup or keyboard
 - **Persistent Settings**: Your progress and settings sync across sessions
 
@@ -63,6 +64,14 @@ Not everyone learns at the same pace:
 
 Enter any value from 0.01 to 1.00 in the custom input field.
 
+### Speed Drops
+
+The trainer is all about pushing your speed up — but sometimes a video is too fast and you slow it back down. Those moments are your **speed drops**.
+
+Whenever you manually lower the speed (via the popup or `Alt+Shift+↓`), the extension records the *episode*: the speed you dropped **from** (the peak before you backed off) and the lowest speed you dropped **to**. Pressing decrease several times in a row counts as one drop. The episode closes as soon as the speed goes back up — manually or via an automatic level-up.
+
+The popup keeps your **5 biggest drops** by magnitude, e.g. `2.50× → 1.50×  −1.00`, so you can see where you struggled most. They persist across sessions and are cleared by **Reset All**.
+
 ## ⚙️ Settings
 
 | Setting | Options | Default |
@@ -105,6 +114,9 @@ This extension:
 - Only stores your settings locally in Chrome
 
 ## 📝 Changelog
+
+### v1.5
+- ✨ Speed Drops: remembers and shows your biggest manual speed drops
 
 ### v1.4
 - ✨ Keyboard shortcuts (Alt+Shift+↑/↓/R)

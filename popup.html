@@ -357,6 +357,70 @@
       text-align: center;
     }
 
+    /* Speed Drops section */
+    .drops-section {
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .drops-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    .drops-header strong {
+      color: #ff5252;
+      font-weight: 600;
+    }
+
+    .drops-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .drop-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      background: rgba(255, 82, 82, 0.06);
+      border: 1px solid rgba(255, 82, 82, 0.15);
+      border-radius: 6px;
+    }
+
+    .drop-transition {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #ccc;
+    }
+
+    .drop-transition .arrow {
+      color: #666;
+      margin: 0 4px;
+    }
+
+    .drop-delta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #ff5252;
+    }
+
+    .drops-empty {
+      font-size: 10px;
+      color: #555;
+      text-align: center;
+      padding: 4px 0;
+    }
+
     /* Reset Button */
     .reset-btn {
       width: 100%;
@@ -554,6 +618,16 @@
           <button class="time-btn" data-value="900">15m</button>
           <button class="time-btn" data-value="1800">30m</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Biggest manual speed drops -->
+    <div class="drops-section">
+      <div class="drops-header">
+        📉 Biggest <strong>speed drops</strong>
+      </div>
+      <div class="drops-list" id="drops-list">
+        <div class="drops-empty">No speed drops yet — they appear when you manually slow down</div>
       </div>
     </div>
 

@@ -17,6 +17,7 @@ let currentState = {
   increment: DEFAULTS.increment,
   timeThreshold: DEFAULTS.timeThreshold,
   watchedTime: DEFAULTS.watchedTime,
+  speedDrops: [],
   isOnYouTube: false,
   tabId: null
 };
@@ -98,6 +99,35 @@ function updateProgressUI(watchedTime, threshold) {
   } else {
     progressHint.textContent = `Watch videos to fill the bar and level up`;
   }
+}
+
+// Render the list of biggest manual speed drops
+function renderSpeedDrops(drops) {
+  const list = document.getElementById('drops-list');
+  if (!list) return;
+
+  if (!Array.isArray(drops) || drops.length === 0) {
+    list.innerHTML = '<div class="drops-empty">No speed drops yet — they appear when you manually slow down</div>';
+    return;
+  }
+
+  list.innerHTML = drops.map(d => `
+    <div class="drop-row">
+      <span class="drop-transition">${d.from.toFixed(2)}×<span class="arrow">→</span>${d.to.toFixed(2)}×</span>
+      <span class="drop-delta">−${d.delta.toFixed(2)}</span>
+    </div>
+  `).join('');
+}
+
+// Merge finalized drops with an in-progress drop, biggest first (storage fallback)
+function topDropsFromStorage(speedDrops, currentDrop) {
+  const all = Array.isArray(speedDrops) ? speedDrops.slice() : [];
+  if (currentDrop) {
+    const delta = Math.round((currentDrop.from - currentDrop.to) * 100) / 100;
+    if (delta > 0) all.push({ ...currentDrop, delta });
+  }
+  all.sort((a, b) => b.delta - a.delta);
+  return all.slice(0, 5);
 }
 
 // Update status indicator
@@ -198,12 +228,14 @@ async function loadState() {
     currentState.increment = contentState.increment;
     currentState.timeThreshold = contentState.timeThreshold;
     currentState.watchedTime = contentState.watchedTime;
-    
+    currentState.speedDrops = contentState.speedDrops || [];
+
     updateSpeedDisplay(currentState.speed);
     updateIncrementUI(currentState.increment);
     updateTimeThresholdUI(currentState.timeThreshold);
     updateProgressUI(currentState.watchedTime, currentState.timeThreshold);
-    updateStatus(true, contentState.isPlaying, 
+    renderSpeedDrops(currentState.speedDrops);
+    updateStatus(true, contentState.isPlaying,
       contentState.hasVideo ? (contentState.isPlaying ? 'Playing' : 'Ready') : 'No video');
   } else {
     loadFromStorage();
@@ -213,16 +245,18 @@ async function loadState() {
 
 // Load from storage (fallback)
 function loadFromStorage() {
-  chrome.storage.local.get(['currentSpeed', 'increment', 'timeThreshold', 'watchedTime'], (result) => {
+  chrome.storage.local.get(['currentSpeed', 'increment', 'timeThreshold', 'watchedTime', 'speedDrops', 'currentDrop'], (result) => {
     currentState.speed = result.currentSpeed ?? DEFAULTS.currentSpeed;
     currentState.increment = result.increment ?? DEFAULTS.increment;
     currentState.timeThreshold = result.timeThreshold ?? DEFAULTS.timeThreshold;
     currentState.watchedTime = result.watchedTime ?? DEFAULTS.watchedTime;
-    
+    currentState.speedDrops = topDropsFromStorage(result.speedDrops, result.currentDrop);
+
     updateSpeedDisplay(currentState.speed);
     updateIncrementUI(currentState.increment);
     updateTimeThresholdUI(currentState.timeThreshold);
     updateProgressUI(currentState.watchedTime, currentState.timeThreshold);
+    renderSpeedDrops(currentState.speedDrops);
   });
 }
 
@@ -284,17 +318,21 @@ async function reset() {
   currentState.increment = DEFAULTS.increment;
   currentState.timeThreshold = DEFAULTS.timeThreshold;
   currentState.watchedTime = DEFAULTS.watchedTime;
-  
+  currentState.speedDrops = [];
+
   updateSpeedDisplay(DEFAULTS.currentSpeed);
   updateIncrementUI(DEFAULTS.increment);
   updateTimeThresholdUI(DEFAULTS.timeThreshold);
   updateProgressUI(0, DEFAULTS.timeThreshold);
-  
+  renderSpeedDrops([]);
+
   chrome.storage.local.set({
     currentSpeed: DEFAULTS.currentSpeed,
     increment: DEFAULTS.increment,
     timeThreshold: DEFAULTS.timeThreshold,
-    watchedTime: 0
+    watchedTime: 0,
+    speedDrops: [],
+    currentDrop: null
   });
   
   if (currentState.isOnYouTube && currentState.tabId) {
@@ -387,8 +425,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state) {
         currentState.watchedTime = state.watchedTime;
         currentState.speed = state.currentSpeed;
+        currentState.speedDrops = state.speedDrops || [];
         updateProgressUI(state.watchedTime, currentState.timeThreshold);
         updateSpeedDisplay(state.currentSpeed);
+        renderSpeedDrops(currentState.speedDrops);
       }
     }
   }, 1000);

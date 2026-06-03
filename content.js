@@ -13,16 +13,24 @@
     watchedTime: 0         // Cumulative watch time
   };
 
+  // How many of the biggest speed drops we keep around for display
+  const MAX_DROPS = 5;
+
   let state = {
     currentSpeed: DEFAULTS.currentSpeed,
     increment: DEFAULTS.increment,
     timeThreshold: DEFAULTS.timeThreshold,
     watchedTime: DEFAULTS.watchedTime,
+    speedDrops: [],        // finalized biggest drops: {from, to, delta, time, videoId}
+    currentDrop: null,     // drop episode in progress: {from, to, time, videoId}
     videoId: null,
     lastAppliedSpeed: null,
     lastTimeUpdate: null,
     isTracking: false
   };
+
+  // Round to 2 decimals (speeds are always at hundredth granularity)
+  const round2 = (n) => Math.round(n * 100) / 100;
 
   // Get current video ID from URL
   function getVideoId() {
@@ -34,15 +42,19 @@
   async function loadSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get([
-        'currentSpeed', 
-        'increment', 
-        'timeThreshold', 
-        'watchedTime'
+        'currentSpeed',
+        'increment',
+        'timeThreshold',
+        'watchedTime',
+        'speedDrops',
+        'currentDrop'
       ], (result) => {
         state.currentSpeed = result.currentSpeed ?? DEFAULTS.currentSpeed;
         state.increment = result.increment ?? DEFAULTS.increment;
         state.timeThreshold = result.timeThreshold ?? DEFAULTS.timeThreshold;
         state.watchedTime = result.watchedTime ?? DEFAULTS.watchedTime;
+        state.speedDrops = Array.isArray(result.speedDrops) ? result.speedDrops : [];
+        state.currentDrop = result.currentDrop ?? null;
         resolve();
       });
     });
@@ -52,8 +64,70 @@
   function saveState() {
     chrome.storage.local.set({
       currentSpeed: state.currentSpeed,
-      watchedTime: state.watchedTime
+      watchedTime: state.watchedTime,
+      speedDrops: state.speedDrops,
+      currentDrop: state.currentDrop
     });
+  }
+
+  // ---- Speed drop tracking -------------------------------------------------
+  // A "speed drop" is a downward episode: one or more consecutive manual
+  // decreases. We record the peak speed it started from and the lowest speed
+  // it reached. The episode closes as soon as the speed goes back up (manually
+  // or via auto level-up). We keep the MAX_DROPS biggest drops by magnitude.
+
+  function saveDrops() {
+    chrome.storage.local.set({
+      speedDrops: state.speedDrops,
+      currentDrop: state.currentDrop
+    });
+  }
+
+  // Merge the finalized drops with the in-progress episode, biggest first.
+  function getTopDrops() {
+    const all = state.speedDrops.slice();
+    if (state.currentDrop) {
+      const delta = round2(state.currentDrop.from - state.currentDrop.to);
+      if (delta > 0) all.push({ ...state.currentDrop, delta });
+    }
+    all.sort((a, b) => b.delta - a.delta);
+    return all.slice(0, MAX_DROPS);
+  }
+
+  // Close the open drop episode and file it among the biggest drops.
+  function finalizeDrop() {
+    const ep = state.currentDrop;
+    if (!ep) return;
+    state.currentDrop = null;
+
+    const delta = round2(ep.from - ep.to);
+    if (delta > 0) {
+      state.speedDrops.push({ from: ep.from, to: ep.to, delta, time: ep.time, videoId: ep.videoId });
+      state.speedDrops.sort((a, b) => b.delta - a.delta);
+      if (state.speedDrops.length > MAX_DROPS) {
+        state.speedDrops = state.speedDrops.slice(0, MAX_DROPS);
+      }
+    }
+    saveDrops();
+  }
+
+  // Feed every speed change through here so drops are tracked centrally.
+  function trackSpeedChange(oldSpeed, newSpeed) {
+    const from = round2(oldSpeed);
+    const to = round2(newSpeed);
+
+    if (to < from) {
+      // Going down: open a new episode or extend the current trough lower.
+      if (!state.currentDrop) {
+        state.currentDrop = { from, to, time: Date.now(), videoId: state.videoId };
+      } else {
+        state.currentDrop.to = to;
+      }
+      saveDrops();
+    } else if (to > from) {
+      // Going up: the drop episode is over.
+      finalizeDrop();
+    }
   }
 
   // Get the video element
@@ -281,7 +355,8 @@
       showSpeedOverlay(roundedSpeed, null);
       return { success: false, speed: roundedSpeed, reason: 'at_limit' };
     }
-    
+
+    trackSpeedChange(state.currentSpeed, roundedSpeed);
     state.currentSpeed = roundedSpeed;
     chrome.storage.local.set({ currentSpeed: roundedSpeed });
     
@@ -301,8 +376,11 @@
   // Reset speed to default (used by keyboard shortcut)
   function resetSpeedToDefault() {
     const video = getVideo();
+    // Resetting to baseline ends any drop episode in progress (we don't treat
+    // the reset itself as a drop — it's a deliberate "start over", not a struggle).
+    finalizeDrop();
     state.currentSpeed = DEFAULTS.currentSpeed;
-    
+
     chrome.storage.local.set({ currentSpeed: DEFAULTS.currentSpeed });
     
     if (video && isVideoReady(video)) {
@@ -322,6 +400,8 @@
       const roundedSpeed = Math.round(newSpeed * 100) / 100;
       
       if (roundedSpeed !== state.currentSpeed) {
+        // Speed is going up — close any drop episode that was still open.
+        finalizeDrop();
         state.currentSpeed = roundedSpeed;
         state.watchedTime = 0; // Reset for next level
         
@@ -423,15 +503,17 @@
           increment: state.increment,
           timeThreshold: state.timeThreshold,
           watchedTime: state.watchedTime,
+          speedDrops: getTopDrops(),
           actualSpeed: video ? video.playbackRate : null,
           isPlaying: video ? !video.paused : false,
           hasVideo: !!video,
           videoId: state.videoId
         });
         break;
-        
+
       case 'SET_SPEED':
         const newSpeed = Math.max(DEFAULTS.minSpeed, Math.min(DEFAULTS.maxSpeed, message.speed));
+        trackSpeedChange(state.currentSpeed, newSpeed);
         state.currentSpeed = newSpeed;
         chrome.storage.local.set({ currentSpeed: newSpeed });
         
@@ -472,12 +554,16 @@
         state.increment = DEFAULTS.increment;
         state.timeThreshold = DEFAULTS.timeThreshold;
         state.watchedTime = 0;
-        
+        state.speedDrops = [];
+        state.currentDrop = null;
+
         chrome.storage.local.set({
           currentSpeed: DEFAULTS.currentSpeed,
           increment: DEFAULTS.increment,
           timeThreshold: DEFAULTS.timeThreshold,
-          watchedTime: 0
+          watchedTime: 0,
+          speedDrops: [],
+          currentDrop: null
         });
         
         // Only apply if video is ready
