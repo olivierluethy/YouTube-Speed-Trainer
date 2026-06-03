@@ -107,15 +107,18 @@ function renderSpeedDrops(drops) {
   if (!list) return;
 
   if (!Array.isArray(drops) || drops.length === 0) {
-    list.innerHTML = '<div class="drops-empty">No speed drops yet — they appear when you manually slow down</div>';
+    list.innerHTML = '<li class="list-group-item bg-transparent border-0 text-secondary text-center px-0 py-1" style="font-size:10px;">No speed drops yet — they appear when you manually slow down</li>';
     return;
   }
 
-  list.innerHTML = drops.map(d => `
-    <div class="drop-row">
-      <span class="drop-transition">${d.from.toFixed(2)}×<span class="arrow">→</span>${d.to.toFixed(2)}×</span>
-      <span class="drop-delta">−${d.delta.toFixed(2)}</span>
-    </div>
+  list.innerHTML = drops.map((d, i) => `
+    <li class="list-group-item drop-row d-flex align-items-center justify-content-between px-2 py-1 mb-1 rounded-2">
+      <span class="d-flex align-items-center gap-2 text-truncate">
+        <span class="badge rounded-pill text-bg-dark" style="font-size:9px;">#${i + 1}</span>
+        <span class="font-monospace small text-light text-truncate">${d.from.toFixed(2)}×<span class="text-secondary mx-1">→</span>${d.to.toFixed(2)}×</span>
+      </span>
+      <span class="font-monospace fw-semibold flex-shrink-0 ms-2" style="color:#ff5252;">−${d.delta.toFixed(2)}</span>
+    </li>
   `).join('');
 }
 

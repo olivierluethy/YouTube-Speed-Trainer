@@ -90,17 +90,19 @@ The popup keeps your **5 biggest drops** by magnitude, e.g. `2.50× → 1.50×  
 
 ```
 youtube-speed-trainer/
-├── manifest.json    # Extension configuration
-├── background.js    # Keyboard shortcut handler
-├── content.js       # Video control & time tracking
-├── popup.html       # Extension popup UI
-├── popup.js         # Popup logic
-└── icon*.png        # Extension icons
+├── manifest.json       # Extension configuration
+├── background.js       # Keyboard shortcut handler
+├── content.js          # Video control & time tracking
+├── popup.html          # Extension popup UI (Bootstrap-based)
+├── popup.js            # Popup logic
+├── bootstrap.min.css   # Bootstrap 5 (vendored locally, no CDN)
+└── icon*.png           # Extension icons
 ```
 
 ## 🔧 Technical Details
 
 - **Manifest V3**: Latest Chrome extension format
+- **UI Framework**: Bootstrap 5 (vendored locally — MV3 forbids remote scripts, so no CDN/build step)
 - **Commands API**: Native Chrome keyboard shortcuts
 - **Time Tracking**: Accurate to 0.5 seconds, ignores background tabs
 - **Storage**: chrome.storage.local for persistence
@@ -117,6 +119,8 @@ This extension:
 
 ### v1.5
 - ✨ Speed Drops: remembers and shows your biggest manual speed drops
+- 💅 Popup rebuilt on Bootstrap 5 (vendored locally); removed the hand-written stylesheet and the remote Google-Fonts dependency
+- 🔧 Speed-drops list is a fixed-height scroll panel, so the popup never overflows regardless of entry count
 
 ### v1.4
 - ✨ Keyboard shortcuts (Alt+Shift+↑/↓/R)
