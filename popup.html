@@ -1,88 +1,473 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=320">
   <title>Speed Trainer</title>
-  <link rel="stylesheet" href="bootstrap.min.css">
   <style>
-    /* ---- Brand theme layer -------------------------------------------------
-       Bootstrap handles all layout & components. This thin layer only carries
-       the brand identity (gradient + teal accent) and the scroll containment
-       for the speed-drops list — things Bootstrap utilities can't express. */
-    :root {
-      --bs-primary: #00d4aa;
-      --bs-primary-rgb: 0, 212, 170;
-      --brand-red: #ff5252;
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
     body {
       width: 300px;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       background: linear-gradient(165deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
-      overflow-x: hidden;
+      color: #e0e0e0;
+      overflow: hidden;
     }
 
-    .panel { background: rgba(255, 255, 255, 0.03); }
+    .container {
+      padding: 20px;
+    }
 
-    .brand-logo {
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .logo {
       width: 36px;
       height: 36px;
-      border-radius: 10px;
       background: linear-gradient(135deg, #00d4aa 0%, #00a080 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
       box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
     }
 
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    /* Speed Display */
     .speed-display {
       background: linear-gradient(135deg, rgba(0, 212, 170, 0.1) 0%, rgba(0, 160, 128, 0.05) 100%);
       border: 1px solid rgba(0, 212, 170, 0.2);
+      border-radius: 16px;
+      padding: 18px;
+      text-align: center;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .speed-display::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(0, 212, 170, 0.05) 0%, transparent 60%);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+
+    .speed-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #00d4aa;
+      margin-bottom: 6px;
+      position: relative;
     }
 
     .speed-value {
+      font-family: 'JetBrains Mono', monospace;
       font-size: 44px;
+      font-weight: 700;
+      color: #fff;
       line-height: 1;
+      position: relative;
       text-shadow: 0 0 30px rgba(0, 212, 170, 0.4);
     }
-    .speed-value .unit { font-size: 22px; color: #00d4aa; }
 
-    .progress-fill { background: linear-gradient(90deg, #00d4aa, #00a080); }
+    .speed-value span {
+      font-size: 22px;
+      color: #00d4aa;
+      margin-left: 2px;
+    }
 
-    /* Small toggle pills (step size & level-up time) */
-    .pill {
-      padding: 5px 10px;
-      font-size: 11px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Speed Controls */
+    .speed-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .speed-btn {
+      flex: 1;
+      height: 52px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 6px 0;
+    }
+
+    .speed-btn .btn-symbol {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .speed-btn .btn-kbd {
+      font-size: 9px;
+      font-weight: 500;
+      opacity: 0.7;
+      letter-spacing: 0.5px;
+      line-height: 1;
+    }
+
+    .speed-btn.decrease {
+      background: rgba(255, 82, 82, 0.15);
+      color: #ff5252;
+      border: 1px solid rgba(255, 82, 82, 0.3);
+    }
+
+    .speed-btn.decrease:hover {
+      background: rgba(255, 82, 82, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(255, 82, 82, 0.2);
+    }
+
+    .speed-btn.increase {
+      background: rgba(0, 212, 170, 0.15);
+      color: #00d4aa;
+      border: 1px solid rgba(0, 212, 170, 0.3);
+    }
+
+    .speed-btn.increase:hover {
+      background: rgba(0, 212, 170, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 212, 170, 0.2);
+    }
+
+    .speed-btn:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    /* Settings Section */
+    .settings {
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .setting-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .setting-label {
+      font-size: 12px;
       color: #888;
+    }
+
+    .setting-label strong {
+      color: #ccc;
+      font-weight: 600;
+    }
+
+    .setting-label small {
+      display: block;
+      font-size: 10px;
+      color: #555;
+      margin-top: 2px;
+    }
+
+    /* Increment selector with presets + custom */
+    .increment-selector {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .increment-btn {
+      padding: 5px 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #888;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    .pill:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
-    .pill.active {
+
+    .increment-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .increment-btn.active {
       background: rgba(0, 212, 170, 0.2);
       border-color: rgba(0, 212, 170, 0.4);
       color: #00d4aa;
     }
 
-    .custom-increment { width: 54px; }
-    .custom-increment:focus,
-    .custom-increment.active {
-      border-color: rgba(0, 212, 170, 0.5) !important;
-      background: rgba(0, 212, 170, 0.12) !important;
-      box-shadow: 0 0 0 0.15rem rgba(0, 212, 170, 0.2) !important;
+    /* Custom increment input */
+    .custom-increment {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .custom-increment input {
+      width: 50px;
+      padding: 5px 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .custom-increment input:focus {
+      outline: none;
+      border-color: rgba(0, 212, 170, 0.5);
+      background: rgba(0, 212, 170, 0.1);
+    }
+
+    .custom-increment input.active {
+      border-color: rgba(0, 212, 170, 0.5);
+      background: rgba(0, 212, 170, 0.15);
+    }
+
+    /* Time threshold selector */
+    .time-selector {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .time-btn {
+      padding: 5px 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #888;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .time-btn:hover {
+      background: rgba(255,255,255,0.1);
       color: #fff;
     }
 
-    /* Speed-drops list: capped height + internal scroll so it never
-       overflows the popup no matter how many rows it holds. */
-    .drops-scroll { max-height: 150px; overflow-y: auto; }
-    .drops-scroll::-webkit-scrollbar { width: 6px; }
-    .drops-scroll::-webkit-scrollbar-thumb { background: rgba(0, 212, 170, 0.35); border-radius: 3px; }
-    .drops-scroll::-webkit-scrollbar-track { background: transparent; }
+    .time-btn.active {
+      background: rgba(0, 212, 170, 0.2);
+      border-color: rgba(0, 212, 170, 0.4);
+      color: #00d4aa;
+    }
+
+    /* Progress bar for watch time */
+    .progress-section {
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .progress-label {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .progress-label strong {
+      color: #00d4aa;
+      font-weight: 600;
+    }
+
+    .progress-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #00d4aa;
+    }
+
+    .progress-bar-container {
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4aa, #00a080);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-hint {
+      font-size: 9px;
+      color: #555;
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    /* Speed Drops section */
+    .drops-section {
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .drops-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    .drops-header strong {
+      color: #ff5252;
+      font-weight: 600;
+    }
+
+    .drops-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
 
     .drop-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
       background: rgba(255, 82, 82, 0.06);
-      border: 1px solid rgba(255, 82, 82, 0.15) !important;
+      border: 1px solid rgba(255, 82, 82, 0.15);
+      border-radius: 6px;
+    }
+
+    .drop-transition {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #ccc;
+    }
+
+    .drop-transition .arrow {
+      color: #666;
+      margin: 0 4px;
+    }
+
+    .drop-delta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #ff5252;
+    }
+
+    .drops-empty {
+      font-size: 10px;
+      color: #555;
+      text-align: center;
+      padding: 4px 0;
+    }
+
+    /* Reset Button */
+    .reset-btn {
+      width: 100%;
+      height: 36px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #666;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 12px;
+      position: relative;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255, 82, 82, 0.1);
+      border-color: rgba(255, 82, 82, 0.3);
+      color: #ff5252;
+    }
+
+    .reset-btn .reset-kbd {
+      position: absolute;
+      right: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      opacity: 0.6;
+      letter-spacing: 0.3px;
+    }
+
+    /* Status indicator */
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 10px;
+      color: #555;
     }
 
     .status-dot {
@@ -90,125 +475,179 @@
       height: 6px;
       border-radius: 50%;
       background: #333;
-      flex: 0 0 auto;
     }
+
     .status-dot.active {
       background: #00d4aa;
       box-shadow: 0 0 8px rgba(0, 212, 170, 0.6);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Toggle switch for progression mode */
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-switch.active {
+      background: rgba(0, 212, 170, 0.3);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-switch.active::after {
+      left: 18px;
+      background: #00d4aa;
+    }
+
+    .mode-label {
+      font-size: 10px;
+      color: #666;
+    }
+
+    .mode-label.active {
+      color: #00d4aa;
+    }
+
+    /* Customize shortcuts footer link */
+    .shortcuts-footer {
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .shortcuts-footer a {
+      font-size: 10px;
+      color: #555;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .shortcuts-footer a:hover {
+      color: #00d4aa;
     }
   </style>
 </head>
-<body class="text-body">
-  <div class="p-3">
-
-    <!-- Header -->
-    <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
-      <div class="brand-logo d-flex align-items-center justify-content-center fs-5">⚡</div>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">⚡</div>
       <div>
-        <div class="fw-bold text-light lh-1" style="letter-spacing:-0.3px;">Speed Trainer</div>
-        <div class="text-secondary mt-1" style="font-size:11px;">Train your brain for faster playback</div>
+        <div class="title">Speed Trainer</div>
+        <div class="subtitle">Train your brain for faster playback</div>
       </div>
     </div>
 
-    <!-- Current speed -->
-    <div class="speed-display rounded-3 p-3 text-center mb-3">
-      <div class="text-uppercase text-primary mb-1" style="font-size:10px;letter-spacing:1.5px;">Current Speed</div>
-      <div class="speed-value font-monospace fw-bold text-light">
-        <span id="speed-int">1</span>.<span id="speed-dec">00</span><span class="unit">×</span>
-      </div>
+    <div class="speed-display">
+      <div class="speed-label">Current Speed</div>
+      <div class="speed-value"><span id="speed-int">1</span>.<span id="speed-dec">00</span><span>×</span></div>
     </div>
 
-    <!-- Speed controls -->
-    <div class="d-flex gap-2 mb-3">
-      <button id="btn-decrease" type="button"
-              class="btn btn-outline-danger flex-fill d-flex flex-column align-items-center justify-content-center py-2"
-              title="Slow down (Alt+Shift+↓)">
-        <span class="fs-5 lh-1">−</span>
-        <span class="opacity-75" style="font-size:9px;letter-spacing:0.5px;">Alt ⇧ ↓</span>
+    <div class="speed-controls">
+      <button class="speed-btn decrease" id="btn-decrease" title="Slow down (Alt+Shift+↓)">
+        <span class="btn-symbol">−</span>
+        <span class="btn-kbd">Alt ⇧ ↓</span>
       </button>
-      <button id="btn-increase" type="button"
-              class="btn btn-outline-primary flex-fill d-flex flex-column align-items-center justify-content-center py-2"
-              title="Speed up (Alt+Shift+↑)">
-        <span class="fs-5 lh-1">+</span>
-        <span class="opacity-75" style="font-size:9px;letter-spacing:0.5px;">Alt ⇧ ↑</span>
+      <button class="speed-btn increase" id="btn-increase" title="Speed up (Alt+Shift+↑)">
+        <span class="btn-symbol">+</span>
+        <span class="btn-kbd">Alt ⇧ ↑</span>
       </button>
     </div>
 
     <!-- Progress toward next speed increase -->
-    <div class="panel rounded-3 p-3 mb-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="small text-secondary">Progress to <span class="fw-semibold text-primary">next level</span></span>
-        <span id="progress-time" class="small font-monospace text-primary">0:00 / 10:00</span>
+    <div class="progress-section">
+      <div class="progress-header">
+        <span class="progress-label">Progress to <strong>next level</strong></span>
+        <span class="progress-time" id="progress-time">0:00 / 10:00</span>
       </div>
-      <div class="progress" style="height:6px;">
-        <div id="progress-bar" class="progress-bar progress-fill" role="progressbar" style="width:0%;"></div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-bar" style="width: 0%"></div>
       </div>
-      <div id="progress-hint" class="text-center text-secondary mt-2" style="font-size:9px;">Watch videos to fill the bar and level up</div>
+      <div class="progress-hint" id="progress-hint">Watch videos to fill the bar and level up</div>
     </div>
 
-    <!-- Settings -->
-    <div class="panel rounded-3 p-3 mb-3">
-      <!-- Step size -->
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <span class="small text-secondary"><span class="fw-semibold text-light">Step</span> size</span>
-        <div class="d-flex gap-1 align-items-center">
-          <button type="button" class="pill increment-btn" data-value="0.05">0.05</button>
-          <button type="button" class="pill increment-btn" data-value="0.1">0.10</button>
-          <button type="button" class="pill increment-btn" data-value="0.2">0.20</button>
-          <input type="text" id="custom-increment"
-                 class="form-control form-control-sm custom-increment font-monospace text-center"
-                 placeholder="0.07" maxlength="4">
+    <div class="settings">
+      <!-- Increment setting -->
+      <div class="setting-row">
+        <div class="setting-label">
+          <strong>Step</strong> size
+        </div>
+        <div class="increment-selector">
+          <button class="increment-btn" data-value="0.05">0.05</button>
+          <button class="increment-btn" data-value="0.1">0.10</button>
+          <button class="increment-btn" data-value="0.2">0.20</button>
+          <div class="custom-increment">
+            <input type="text" id="custom-increment" placeholder="0.07" maxlength="4">
+          </div>
         </div>
       </div>
-      <!-- Level-up time threshold -->
-      <div class="d-flex justify-content-between align-items-center">
-        <span class="small text-secondary"><span class="fw-semibold text-light">Level up</span> every</span>
-        <div class="d-flex gap-1">
-          <button type="button" class="pill time-btn" data-value="300">5m</button>
-          <button type="button" class="pill time-btn" data-value="600">10m</button>
-          <button type="button" class="pill time-btn" data-value="900">15m</button>
-          <button type="button" class="pill time-btn" data-value="1800">30m</button>
+
+      <!-- Time threshold setting -->
+      <div class="setting-row">
+        <div class="setting-label">
+          <strong>Level up</strong> every
+        </div>
+        <div class="time-selector">
+          <button class="time-btn" data-value="300">5m</button>
+          <button class="time-btn" data-value="600">10m</button>
+          <button class="time-btn" data-value="900">15m</button>
+          <button class="time-btn" data-value="1800">30m</button>
         </div>
       </div>
     </div>
 
     <!-- Biggest manual speed drops -->
-    <div class="panel rounded-3 p-3 mb-3">
-      <div class="d-flex align-items-center gap-2 mb-2 small text-secondary">
-        <span>📉</span><span>Biggest <span class="fw-semibold" style="color:var(--brand-red);">speed drops</span></span>
+    <div class="drops-section">
+      <div class="drops-header">
+        📉 Biggest <strong>speed drops</strong>
       </div>
-      <div class="drops-scroll">
-        <ul id="drops-list" class="list-group list-group-flush mb-0">
-          <li class="list-group-item bg-transparent border-0 text-secondary text-center px-0 py-1" style="font-size:10px;">
-            No speed drops yet — they appear when you manually slow down
-          </li>
-        </ul>
+      <div class="drops-list" id="drops-list">
+        <div class="drops-empty">No speed drops yet — they appear when you manually slow down</div>
       </div>
     </div>
 
-    <!-- Reset -->
-    <button id="btn-reset" type="button"
-            class="btn btn-outline-secondary btn-sm w-100 d-flex align-items-center justify-content-center gap-2 position-relative"
-            title="Reset all (Alt+Shift+R)">
+    <button class="reset-btn" id="btn-reset" title="Reset all (Alt+Shift+R)">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
         <path d="M3 3v5h5"/>
       </svg>
       Reset All
-      <span class="position-absolute end-0 me-3 font-monospace opacity-75" style="font-size:9px;">Alt+⇧+R</span>
+      <span class="reset-kbd">Alt+⇧+R</span>
     </button>
 
-    <!-- Status -->
-    <div class="d-flex align-items-center justify-content-center gap-2 mt-3 pt-3 border-top small text-secondary">
-      <span id="status-dot" class="status-dot"></span>
+    <div class="status">
+      <div class="status-dot" id="status-dot"></div>
       <span id="status-text">Not on YouTube</span>
     </div>
 
-    <!-- Customize shortcuts -->
-    <div class="text-center mt-2">
-      <a href="#" id="customize-shortcuts" class="link-secondary text-decoration-none" style="font-size:10px;">⌨ Customize keyboard shortcuts</a>
+    <div class="shortcuts-footer">
+      <a href="#" id="customize-shortcuts">⌨ Customize keyboard shortcuts</a>
     </div>
-
   </div>
 
   <script src="popup.js"></script>
