@@ -10,23 +10,49 @@
     minSpeed: 0.5,
     maxSpeed: 4.0,
     timeThreshold: 600,    // 10 minutes in seconds
-    watchedTime: 0         // Cumulative watch time
+    watchedTime: 0,        // Cumulative watch time
+    autoProgressionEnabled: true
+  };
+
+  // Default in-page keyboard bindings (issue #7). These mirror the manifest's
+  // chrome.commands defaults; the customizer page overwrites this map. Each
+  // binding is { code, alt, ctrl, shift, meta }.
+  const DEFAULT_SHORTCUTS = {
+    'increase-speed': { code: 'ArrowUp', alt: true, ctrl: false, shift: true, meta: false },
+    'decrease-speed': { code: 'ArrowDown', alt: true, ctrl: false, shift: true, meta: false },
+    'reset-speed': { code: 'KeyR', alt: true, ctrl: false, shift: true, meta: false },
+    'toggle-auto': null
   };
 
   // How many of the biggest speed drops we keep around for display
   const MAX_DROPS = 5;
+  // How much rolling history we retain for analytics / charts
+  const MAX_DROP_HISTORY = 100;
+  const MAX_SPEED_CHANGES = 500;
+  const MAX_VIDEO_STATS = 200;
 
   let state = {
     currentSpeed: DEFAULTS.currentSpeed,
     increment: DEFAULTS.increment,
     timeThreshold: DEFAULTS.timeThreshold,
     watchedTime: DEFAULTS.watchedTime,
-    speedDrops: [],        // finalized biggest drops: {from, to, delta, time, videoId}
-    currentDrop: null,     // drop episode in progress: {from, to, time, videoId}
+    autoProgressionEnabled: DEFAULTS.autoProgressionEnabled,
+    speedDrops: [],        // finalized biggest drops: {from, to, delta, time, videoId, day, title}
+    currentDrop: null,     // drop episode in progress: {from, to, time, videoId, title}
+    dropHistory: [],       // rolling record of every finalized drop (for charts)
+    speedChangeLog: [],    // manual adjustments: {t, from, to, dir, videoId} (for step-size optimization)
+    videoStats: {},        // videoId -> {real, content, saved, lastSpeed, title, firstSeen, lastSeen}
+    stats: null,           // analytics telemetry (see STA.emptyStats)
+    streak: { current: 0, longest: 0, lastDay: null },
+    achievementsUnlocked: {}, // id -> unlock timestamp
+    customShortcuts: { ...DEFAULT_SHORTCUTS },
+    lastActionAt: {},         // action -> timestamp, for debounce dedup
     videoId: null,
+    videoTitle: null,
     lastAppliedSpeed: null,
     lastTimeUpdate: null,
-    isTracking: false
+    isTracking: false,
+    statsDirty: false
   };
 
   // Round to 2 decimals (speeds are always at hundredth granularity)
@@ -38,6 +64,12 @@
     return urlParams.get('v');
   }
 
+  // Best-effort current video title from the tab title.
+  function getVideoTitle() {
+    const t = (document.title || '').replace(/\s*-\s*YouTube\s*$/i, '').replace(/^\(\d+\)\s*/, '').trim();
+    return t || null;
+  }
+
   // Load settings from storage
   async function loadSettings() {
     return new Promise((resolve) => {
@@ -46,15 +78,34 @@
         'increment',
         'timeThreshold',
         'watchedTime',
+        'autoProgressionEnabled',
         'speedDrops',
-        'currentDrop'
+        'currentDrop',
+        'dropHistory',
+        'speedChangeLog',
+        'videoStats',
+        'stats',
+        'streak',
+        'achievementsUnlocked',
+        'customShortcuts'
       ], (result) => {
         state.currentSpeed = result.currentSpeed ?? DEFAULTS.currentSpeed;
         state.increment = result.increment ?? DEFAULTS.increment;
         state.timeThreshold = result.timeThreshold ?? DEFAULTS.timeThreshold;
         state.watchedTime = result.watchedTime ?? DEFAULTS.watchedTime;
+        state.autoProgressionEnabled = result.autoProgressionEnabled ?? DEFAULTS.autoProgressionEnabled;
         state.speedDrops = Array.isArray(result.speedDrops) ? result.speedDrops : [];
         state.currentDrop = result.currentDrop ?? null;
+        state.dropHistory = Array.isArray(result.dropHistory) ? result.dropHistory : [];
+        state.speedChangeLog = Array.isArray(result.speedChangeLog) ? result.speedChangeLog : [];
+        state.videoStats = (result.videoStats && typeof result.videoStats === 'object') ? result.videoStats : {};
+        state.stats = STA.mergeStats(result.stats);
+        state.streak = (result.streak && typeof result.streak === 'object')
+          ? result.streak : { current: 0, longest: 0, lastDay: null };
+        state.achievementsUnlocked = (result.achievementsUnlocked && typeof result.achievementsUnlocked === 'object')
+          ? result.achievementsUnlocked : {};
+        state.customShortcuts = (result.customShortcuts && typeof result.customShortcuts === 'object')
+          ? { ...DEFAULT_SHORTCUTS, ...result.customShortcuts } : { ...DEFAULT_SHORTCUTS };
         resolve();
       });
     });
@@ -70,6 +121,17 @@
     });
   }
 
+  // Persist the analytics telemetry (called on a throttle from the watch loop).
+  function saveStats() {
+    chrome.storage.local.set({
+      stats: state.stats,
+      videoStats: state.videoStats,
+      streak: state.streak,
+      achievementsUnlocked: state.achievementsUnlocked
+    });
+    state.statsDirty = false;
+  }
+
   // ---- Speed drop tracking -------------------------------------------------
   // A "speed drop" is a downward episode: one or more consecutive manual
   // decreases. We record the peak speed it started from and the lowest speed
@@ -79,8 +141,118 @@
   function saveDrops() {
     chrome.storage.local.set({
       speedDrops: state.speedDrops,
-      currentDrop: state.currentDrop
+      currentDrop: state.currentDrop,
+      dropHistory: state.dropHistory
     });
+  }
+
+  // ---- manual-adjustment logging (issue #4: step-size optimization) --------
+  // Record every *manual* speed change so the recommender can study how the
+  // user tends to reach their preferred speed. Auto level-ups are excluded.
+  function logSpeedChange(from, to) {
+    const dir = to > from ? 'up' : to < from ? 'down' : null;
+    if (!dir) return;
+    state.speedChangeLog.push({
+      t: Date.now(),
+      from: round2(from),
+      to: round2(to),
+      dir,
+      videoId: state.videoId
+    });
+    if (state.speedChangeLog.length > MAX_SPEED_CHANGES) {
+      state.speedChangeLog = state.speedChangeLog.slice(-MAX_SPEED_CHANGES);
+    }
+    chrome.storage.local.set({ speedChangeLog: state.speedChangeLog });
+  }
+
+  // ---- analytics telemetry (issues #3, #6, #8) -----------------------------
+  // Fold `elapsed` real seconds watched at `speed` into every rollup we keep.
+  function accumulateStats(elapsed, speed, videoId) {
+    if (!(elapsed > 0)) return;
+    const s = state.stats;
+    const key = STA.speedKey(speed);
+    const content = elapsed * speed;
+
+    s.timeAtSpeed[key] = (s.timeAtSpeed[key] || 0) + elapsed;
+    s.totalReal += elapsed;
+    s.totalContent += content;
+
+    const today = STA.dayKey(new Date());
+    const d = s.daily[today] || (s.daily[today] = { real: 0, content: 0, maxSpeed: 0 });
+    d.real += elapsed;
+    d.content += content;
+    d.maxSpeed = Math.max(d.maxSpeed, round2(state.currentSpeed));
+
+    if (videoId) {
+      const v = state.videoStats[videoId] || (state.videoStats[videoId] = {
+        real: 0, content: 0, saved: 0, lastSpeed: speed,
+        title: state.videoTitle || null, firstSeen: Date.now(), lastSeen: Date.now()
+      });
+      v.real += elapsed;
+      v.content += content;
+      v.saved = Math.max(0, v.content - v.real);
+      v.lastSpeed = round2(speed);
+      v.lastSeen = Date.now();
+      if (!v.title && state.videoTitle) v.title = state.videoTitle;
+      pruneVideoStats();
+    }
+
+    maybeBumpStreak(today, d.real);
+    state.statsDirty = true;
+  }
+
+  // Keep only the most recently seen videos so storage stays bounded.
+  function pruneVideoStats() {
+    const ids = Object.keys(state.videoStats);
+    if (ids.length <= MAX_VIDEO_STATS) return;
+    ids.sort((a, b) => (state.videoStats[a].lastSeen || 0) - (state.videoStats[b].lastSeen || 0));
+    for (const id of ids.slice(0, ids.length - MAX_VIDEO_STATS)) delete state.videoStats[id];
+  }
+
+  // A day counts toward the streak once ~1 minute has been watched on it.
+  function maybeBumpStreak(today, todaysReal) {
+    if (state.streak.lastDay === today || todaysReal < 60) return;
+    const yesterday = STA.dayKey(new Date(Date.now() - 86400000));
+    state.streak = STA.bumpStreak(state.streak, today, yesterday);
+  }
+
+  // Fire a one-shot notification + persist when an achievement is newly earned.
+  function checkAchievements() {
+    const list = STA.evaluateAchievements(state.stats, state.streak, state.achievementsUnlocked);
+    let changed = false;
+    for (const a of list) {
+      if (a.newlyUnlocked) {
+        state.achievementsUnlocked[a.id] = Date.now();
+        changed = true;
+        showNotification(
+          `${a.icon} Achievement unlocked!<br><span style="font-size:13px;font-weight:600;">${a.title}</span>`,
+          'levelup'
+        );
+      }
+    }
+    if (changed) chrome.storage.local.set({ achievementsUnlocked: state.achievementsUnlocked });
+  }
+
+  // Assemble the full analytics payload the popup/report surfaces read.
+  function buildAnalyticsPayload() {
+    const stats = state.stats;
+    const achievements = STA.evaluateAchievements(stats, state.streak, state.achievementsUnlocked);
+    return {
+      stats,
+      streak: state.streak,
+      dropHistory: state.dropHistory,
+      speedDrops: getTopDrops(),
+      speedChangeLog: state.speedChangeLog,
+      videoStats: state.videoStats,
+      achievements,
+      rank: STA.rankFromAchievements(achievements),
+      settings: {
+        increment: state.increment,
+        timeThreshold: state.timeThreshold,
+        autoProgressionEnabled: state.autoProgressionEnabled,
+        currentSpeed: state.currentSpeed
+      }
+    };
   }
 
   // Merge the finalized drops with the in-progress episode, biggest first.
@@ -102,10 +274,24 @@
 
     const delta = round2(ep.from - ep.to);
     if (delta > 0) {
-      state.speedDrops.push({ from: ep.from, to: ep.to, delta, time: ep.time, videoId: ep.videoId });
+      const record = {
+        from: ep.from,
+        to: ep.to,
+        delta,
+        time: ep.time,
+        videoId: ep.videoId,
+        title: ep.title || null
+      };
+      // Top-N biggest drops (for the popup's compact list).
+      state.speedDrops.push(record);
       state.speedDrops.sort((a, b) => b.delta - a.delta);
       if (state.speedDrops.length > MAX_DROPS) {
         state.speedDrops = state.speedDrops.slice(0, MAX_DROPS);
+      }
+      // Full rolling history (for the chart & analytics).
+      state.dropHistory.push(record);
+      if (state.dropHistory.length > MAX_DROP_HISTORY) {
+        state.dropHistory = state.dropHistory.slice(-MAX_DROP_HISTORY);
       }
     }
     saveDrops();
@@ -119,7 +305,7 @@
     if (to < from) {
       // Going down: open a new episode or extend the current trough lower.
       if (!state.currentDrop) {
-        state.currentDrop = { from, to, time: Date.now(), videoId: state.videoId };
+        state.currentDrop = { from, to, time: Date.now(), videoId: state.videoId, title: state.videoTitle };
       } else {
         state.currentDrop.to = to;
       }
@@ -357,9 +543,10 @@
     }
 
     trackSpeedChange(state.currentSpeed, roundedSpeed);
+    logSpeedChange(state.currentSpeed, roundedSpeed);
     state.currentSpeed = roundedSpeed;
     chrome.storage.local.set({ currentSpeed: roundedSpeed });
-    
+
     // Apply if video is ready
     if (video && isVideoReady(video)) {
       video.playbackRate = roundedSpeed;
@@ -393,8 +580,70 @@
     return { success: true, speed: DEFAULTS.currentSpeed };
   }
 
+  // Toggle auto-progression (an "Activate Extension" style shortcut, issue #7).
+  function toggleAutoProgression() {
+    state.autoProgressionEnabled = !state.autoProgressionEnabled;
+    chrome.storage.local.set({ autoProgressionEnabled: state.autoProgressionEnabled });
+    showNotification(
+      `Auto-progression ${state.autoProgressionEnabled ? 'ON ▶' : 'OFF ⏸'}`,
+      state.autoProgressionEnabled ? 'success' : 'info'
+    );
+    return { success: true, autoProgressionEnabled: state.autoProgressionEnabled };
+  }
+
+  // ---- shortcut dispatch (issue #7) ---------------------------------------
+  // Both chrome.commands (background) and the in-page keydown listener funnel
+  // through here. A short per-action debounce means a binding that matches BOTH
+  // paths (e.g. the shared defaults) only fires once.
+  function runAction(action) {
+    const now = Date.now();
+    if (state.lastActionAt[action] && now - state.lastActionAt[action] < 250) {
+      return { success: false, reason: 'debounced' };
+    }
+    state.lastActionAt[action] = now;
+    switch (action) {
+      case 'increase-speed': return changeSpeedByIncrement('up');
+      case 'decrease-speed': return changeSpeedByIncrement('down');
+      case 'reset-speed': return resetSpeedToDefault();
+      case 'toggle-auto': return toggleAutoProgression();
+      default: return { success: false, reason: 'unknown_action' };
+    }
+  }
+
+  // Does a keyboard event match a stored binding?
+  function eventMatchesBinding(e, binding) {
+    if (!binding || !binding.code) return false;
+    return e.code === binding.code &&
+      e.altKey === !!binding.alt &&
+      e.ctrlKey === !!binding.ctrl &&
+      e.shiftKey === !!binding.shift &&
+      e.metaKey === !!binding.meta;
+  }
+
+  // Ignore shortcuts while the user is typing (search box, comments, etc.).
+  function isTypingTarget(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    return el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  }
+
+  function handleShortcutKeydown(e) {
+    if (isTypingTarget(e.target)) return;
+    for (const [action, binding] of Object.entries(state.customShortcuts)) {
+      if (eventMatchesBinding(e, binding)) {
+        e.preventDefault();
+        e.stopPropagation();
+        runAction(action);
+        return;
+      }
+    }
+  }
+
   // Check if threshold reached and level up
   function checkAndLevelUp() {
+    // Issue #2: auto-progression can be switched off; time still accrues but we
+    // don't bump the speed.
+    if (!state.autoProgressionEnabled) return;
     if (state.watchedTime >= state.timeThreshold) {
       const newSpeed = Math.min(DEFAULTS.maxSpeed, state.currentSpeed + state.increment);
       const roundedSpeed = Math.round(newSpeed * 100) / 100;
@@ -446,13 +695,23 @@
       // This prevents counting time when tab was in background
       if (elapsed > 0 && elapsed < 2) {
         state.watchedTime += elapsed;
-        
+
+        // Fold this slice into the analytics rollups (real vs content time,
+        // per-video, daily, streak) at the speed actually playing.
+        const playingSpeed = STA.round2(video.playbackRate || state.currentSpeed);
+        accumulateStats(elapsed, playingSpeed, state.videoId);
+
         // Check for level up
         checkAndLevelUp();
-        
+
         // Save periodically (every ~5 seconds to reduce writes)
         if (Math.floor(state.watchedTime) % 5 === 0) {
           chrome.storage.local.set({ watchedTime: state.watchedTime });
+        }
+        // Persist analytics + evaluate achievements on the same cadence.
+        if (state.statsDirty && Math.floor(state.stats.totalReal) % 5 === 0) {
+          checkAchievements();
+          saveStats();
         }
       }
     }
@@ -467,9 +726,13 @@
     
     if (newVideoId && newVideoId !== state.videoId) {
       state.videoId = newVideoId;
+      state.videoTitle = getVideoTitle();
       state.isTracking = false;
       state.lastTimeUpdate = null;
       console.log(`[Speed Trainer] New video: ${newVideoId}`);
+    } else if (newVideoId && !state.videoTitle) {
+      // Title often loads a beat after the id — pick it up when it appears.
+      state.videoTitle = getVideoTitle();
     }
   }
 
@@ -503,6 +766,7 @@
           increment: state.increment,
           timeThreshold: state.timeThreshold,
           watchedTime: state.watchedTime,
+          autoProgressionEnabled: state.autoProgressionEnabled,
           speedDrops: getTopDrops(),
           actualSpeed: video ? video.playbackRate : null,
           isPlaying: video ? !video.paused : false,
@@ -511,9 +775,17 @@
         });
         break;
 
+      // Live analytics snapshot (freshest data, before the periodic save).
+      case 'GET_ANALYTICS':
+        checkAchievements();
+        saveStats();
+        sendResponse(buildAnalyticsPayload());
+        break;
+
       case 'SET_SPEED':
         const newSpeed = Math.max(DEFAULTS.minSpeed, Math.min(DEFAULTS.maxSpeed, message.speed));
         trackSpeedChange(state.currentSpeed, newSpeed);
+        logSpeedChange(state.currentSpeed, newSpeed);
         state.currentSpeed = newSpeed;
         chrome.storage.local.set({ currentSpeed: newSpeed });
         
@@ -548,22 +820,70 @@
         chrome.storage.local.set({ timeThreshold: message.timeThreshold });
         sendResponse({ success: true });
         break;
-        
+
+      case 'SET_AUTO_PROGRESSION':
+        state.autoProgressionEnabled = !!message.enabled;
+        chrome.storage.local.set({ autoProgressionEnabled: state.autoProgressionEnabled });
+        sendResponse({ success: true, autoProgressionEnabled: state.autoProgressionEnabled });
+        break;
+
+      // Issue #3: reset the *personal average* baseline only — analytics history
+      // (drops, time saved, per-video data) is preserved.
+      case 'RESET_PERSONAL_AVERAGE':
+        state.stats.baselineReal = state.stats.totalReal;
+        state.stats.baselineContent = state.stats.totalContent;
+        state.stats.baselineResetAt = Date.now();
+        saveStats();
+        sendResponse({ success: true });
+        break;
+
+      // Issue #3: full analytics wipe (kept separate from settings reset so the
+      // popup can require an explicit confirmation).
+      case 'RESET_HISTORY':
+        state.speedDrops = [];
+        state.currentDrop = null;
+        state.dropHistory = [];
+        state.speedChangeLog = [];
+        state.videoStats = {};
+        state.stats = STA.emptyStats();
+        state.streak = { current: 0, longest: 0, lastDay: null };
+        state.achievementsUnlocked = {};
+        chrome.storage.local.set({
+          speedDrops: [], currentDrop: null, dropHistory: [], speedChangeLog: [],
+          videoStats: {}, stats: state.stats, streak: state.streak, achievementsUnlocked: {}
+        });
+        sendResponse({ success: true });
+        break;
+
       case 'RESET':
         state.currentSpeed = DEFAULTS.currentSpeed;
         state.increment = DEFAULTS.increment;
         state.timeThreshold = DEFAULTS.timeThreshold;
         state.watchedTime = 0;
+        state.autoProgressionEnabled = DEFAULTS.autoProgressionEnabled;
         state.speedDrops = [];
         state.currentDrop = null;
+        state.dropHistory = [];
+        state.speedChangeLog = [];
+        state.videoStats = {};
+        state.stats = STA.emptyStats();
+        state.streak = { current: 0, longest: 0, lastDay: null };
+        state.achievementsUnlocked = {};
 
         chrome.storage.local.set({
           currentSpeed: DEFAULTS.currentSpeed,
           increment: DEFAULTS.increment,
           timeThreshold: DEFAULTS.timeThreshold,
           watchedTime: 0,
+          autoProgressionEnabled: DEFAULTS.autoProgressionEnabled,
           speedDrops: [],
-          currentDrop: null
+          currentDrop: null,
+          dropHistory: [],
+          speedChangeLog: [],
+          videoStats: {},
+          stats: state.stats,
+          streak: state.streak,
+          achievementsUnlocked: {}
         });
         
         // Only apply if video is ready
@@ -579,25 +899,15 @@
         sendResponse({ alive: true, hasVideo: !!video });
         break;
       
-      // Keyboard command handling
+      // Keyboard command handling (from chrome.commands via background.js)
       case 'KEYBOARD_COMMAND':
-        let result;
-        switch (message.command) {
-          case 'increase-speed':
-            result = changeSpeedByIncrement('up');
-            sendResponse(result);
-            break;
-          case 'decrease-speed':
-            result = changeSpeedByIncrement('down');
-            sendResponse(result);
-            break;
-          case 'reset-speed':
-            result = resetSpeedToDefault();
-            sendResponse(result);
-            break;
-          default:
-            sendResponse({ success: false, reason: 'unknown_command' });
-        }
+        sendResponse(runAction(message.command));
+        break;
+
+      // The customizer saved new bindings — apply them live (issue #7.15).
+      case 'SHORTCUTS_UPDATED':
+        state.customShortcuts = { ...DEFAULT_SHORTCUTS, ...(message.shortcuts || {}) };
+        sendResponse({ success: true });
         break;
     }
     
@@ -622,8 +932,23 @@
       }
     }).observe(document.body, { subtree: true, childList: true });
     
+    // In-page custom keyboard shortcuts (issue #7). Capture phase so we can beat
+    // YouTube's own handlers for the chosen combos.
+    window.addEventListener('keydown', handleShortcutKeydown, true);
+
+    // Keep custom shortcuts in sync if changed from the customizer page while a
+    // YouTube tab is already open.
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.customShortcuts) {
+        state.customShortcuts = { ...DEFAULT_SHORTCUTS, ...(changes.customShortcuts.newValue || {}) };
+      }
+      if (area === 'local' && changes.autoProgressionEnabled) {
+        state.autoProgressionEnabled = changes.autoProgressionEnabled.newValue ?? DEFAULTS.autoProgressionEnabled;
+      }
+    });
+
     // Save state before page unload
-    window.addEventListener('beforeunload', saveState);
+    window.addEventListener('beforeunload', () => { saveState(); saveStats(); });
   }
 
   // Start

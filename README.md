@@ -4,11 +4,14 @@ A Chrome extension that helps you gradually train yourself to watch YouTube vide
 
 ## ✨ Features
 
-- **Time-Based Progression**: Speed increases based on total watch time, not per video
-- **Custom Increments**: Choose preset values (0.05, 0.10, 0.20) or enter any custom value
-- **Keyboard Shortcuts**: Control speed instantly without opening the popup
-- **Visual Progress Bar**: See your progress toward the next speed level
-- **Speed Drops**: When you manually slow down, the extension remembers and shows your biggest speed drops
+- **Time-Based Progression**: Speed increases based on total watch time, not per video — with an on/off toggle
+- **Custom Step Sizes**: Keep multiple custom increments; add, pick, or remove them anytime
+- **Smart Recommendations**: Get data-driven step-size and level-up suggestions based on how you actually watch
+- **Analytics & Time Saved**: See time saved, personal average speed, natural speed range, and per-video breakdowns
+- **Progress Reports & Goal Forecasting**: A full report page with charts, a target speed, and an ETA to reach it (export to PDF)
+- **Achievements & Streaks**: Unlock milestones from genuine viewing, build streaks, and share achievement cards
+- **Visual Keyboard Shortcuts**: Configure shortcuts on an on-screen keyboard with conflict detection and live testing
+- **Speed Drops**: When you manually slow down, the extension records the episode with date, time, and video
 - **Instant Speed Control**: Adjust speed anytime via the popup or keyboard
 - **Persistent Settings**: Your progress and settings sync across sessions
 
@@ -91,10 +94,15 @@ The popup keeps your **5 biggest drops** by magnitude, e.g. `2.50× → 1.50×  
 ```
 youtube-speed-trainer/
 ├── manifest.json    # Extension configuration
-├── background.js    # Keyboard shortcut handler
-├── content.js       # Video control & time tracking
-├── popup.html       # Extension popup UI
+├── background.js    # Keyboard shortcut handler & badge
+├── content.js       # Video control, time tracking & telemetry
+├── analytics.js     # Shared analytics/recommendation/achievement library
+├── popup.html       # Extension popup UI (Trainer / Insights / Awards tabs)
 ├── popup.js         # Popup logic
+├── reports.html     # Progress reports & goal forecasting page
+├── reports.js       # Reports logic (charts, forecasts, PDF export)
+├── shortcuts.html   # Visual keyboard shortcut customizer
+├── shortcuts.js     # Shortcut customizer logic
 └── icon*.png        # Extension icons
 ```
 
@@ -114,6 +122,17 @@ This extension:
 - Only stores your settings locally in Chrome
 
 ## 📝 Changelog
+
+### v1.6
+- ✨ Auto-progression on/off toggle
+- ✨ Multiple custom step sizes (add / pick / remove) with input validation
+- ✨ Insights: time saved, personal average speed, natural speed range
+- ✨ Data-driven step-size & level-up recommendations (with a one-click "optimize both")
+- ✨ Speed drops now record date, time, and the associated video, in a scrollable list
+- ✨ Separate resets: reset personal average (keeps history) vs. delete all history (confirmed)
+- ✨ Achievements, ranks & streaks earned from genuine viewing, with shareable cards
+- ✨ Progress Reports & Goal Forecasting page with charts, target speed, ETA and PDF export
+- ✨ Visual keyboard shortcut customizer with conflict detection and live testing
 
 ### v1.5
 - ✨ Speed Drops: remembers and shows your biggest manual speed drops

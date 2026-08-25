@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyboard Shortcuts — Speed Trainer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --accent: #00d4aa;
+      --accent-dark: #00a080;
+      --danger: #ff5252;
+      --text: #e0e0e0;
+      --muted: #888;
+      --faint: #555;
+      --card: rgba(255,255,255,0.03);
+      --card-border: rgba(255,255,255,0.08);
+    }
+
+    html, body { overflow-x: hidden; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(165deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .page { max-width: 1040px; margin: 0 auto; padding: 28px 24px 60px; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .logo {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 15px rgba(0,212,170,0.3);
+      flex-shrink: 0;
+    }
+    .title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+    .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .layout-switch { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .layout-switch .lbl { font-size: 11px; color: var(--faint); }
+    .seg {
+      display: flex; background: rgba(255,255,255,0.05);
+      border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden;
+    }
+    .seg button {
+      padding: 7px 12px; border: none; background: transparent; color: var(--muted);
+      font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .seg button.active { background: rgba(0,212,170,0.2); color: var(--accent); }
+    .seg button:hover:not(.active) { color: #fff; }
+
+    /* Step strip */
+    .steps {
+      display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap;
+    }
+    .step {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 10px;
+      background: var(--card); border: 1px solid var(--card-border);
+      font-size: 12px; color: var(--muted); transition: all 0.2s ease;
+    }
+    .step .num {
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.08); color: var(--faint);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step.active {
+      border-color: rgba(0,212,170,0.45);
+      background: rgba(0,212,170,0.08);
+      color: #fff;
+    }
+    .step.active .num { background: var(--accent); color: #04241d; }
+    .step.done .num { background: rgba(0,212,170,0.25); color: var(--accent); }
+
+    /* Layout grid */
+    .grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .card h2 {
+      font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted); margin-bottom: 4px; font-weight: 700;
+    }
+    .card .help { font-size: 11px; color: var(--faint); margin-bottom: 14px; }
+
+    /* Actions list */
+    .action {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px; border-radius: 10px; cursor: pointer;
+      border: 1px solid transparent; margin-bottom: 8px; transition: all 0.15s ease;
+    }
+    .action:hover { background: rgba(255,255,255,0.04); }
+    .action.selected {
+      background: rgba(0,212,170,0.08);
+      border-color: rgba(0,212,170,0.4);
+    }
+    .action .dot {
+      width: 10px; height: 10px; border-radius: 3px; margin-top: 4px; flex-shrink: 0;
+      background: var(--faint);
+    }
+    .action.selected .dot { background: var(--accent); box-shadow: 0 0 8px rgba(0,212,170,0.6); }
+    .action .a-name { font-size: 13px; font-weight: 600; color: #ddd; }
+    .action.selected .a-name { color: #fff; }
+    .action .a-desc { font-size: 11px; color: var(--faint); margin-top: 2px; }
+    .action .a-binding {
+      margin-top: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--accent);
+    }
+    .action .a-binding.unset { color: var(--faint); font-style: italic; }
+
+    /* Editor */
+    .editor-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+    .editor-head .now-editing { font-size: 12px; color: var(--muted); }
+    .editor-head .now-editing strong { color: var(--accent); }
+
+    /* Chips */
+    .chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 14px 0; min-height: 34px; }
+    .chip {
+      font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+      padding: 6px 12px; border-radius: 8px;
+      background: rgba(0,212,170,0.15); color: var(--accent);
+      border: 1px solid rgba(0,212,170,0.3);
+    }
+    .chip.plus { background: none; border: none; color: var(--faint); padding: 0 2px; }
+    .chips .empty { font-size: 12px; color: var(--faint); font-style: italic; }
+
+    /* Keyboard */
+    .kbd-wrap { overflow-x: auto; padding: 4px 2px 8px; margin-bottom: 6px; }
+    .keyboard {
+      display: inline-flex; flex-direction: column; gap: 6px;
+      background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05); min-width: 100%;
+    }
+    .kbd-row { display: flex; gap: 6px; justify-content: flex-start; }
+    .key {
+      min-width: 38px; height: 42px; padding: 0 8px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #cfcfcf;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+      cursor: pointer; user-select: none;
+      transition: all 0.12s ease; white-space: nowrap;
+    }
+    .key:hover { background: rgba(255,255,255,0.12); color: #fff; transform: translateY(-1px); }
+    .key .sub { font-size: 8px; font-weight: 500; opacity: 0.55; letter-spacing: 0.2px; }
+    .key.wide { min-width: 66px; }
+    .key.xwide { min-width: 96px; }
+    .key.space { min-width: 280px; }
+    .key.mod { background: rgba(255,255,255,0.03); color: var(--muted); }
+    /* selected as part of the pending binding (this action) */
+    .key.on {
+      background: rgba(0,212,170,0.25);
+      border-color: rgba(0,212,170,0.6);
+      color: var(--accent);
+      box-shadow: 0 0 12px rgba(0,212,170,0.35);
+    }
+    /* used by another action */
+    .key.other {
+      border-color: rgba(255,180,0,0.45);
+      box-shadow: inset 0 0 0 1px rgba(255,180,0,0.25);
+    }
+    .key.other::after {
+      content: ''; position: absolute;
+    }
+    .key.reserved-hint { border-color: rgba(255,82,82,0.35); }
+    .key.flash {
+      background: rgba(0,212,170,0.4) !important;
+      border-color: var(--accent) !important;
+      color: #fff !important;
+    }
+
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; font-size: 10px; color: var(--faint); }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+    .legend i.this { background: rgba(0,212,170,0.5); }
+    .legend i.oth { background: rgba(255,180,0,0.4); }
+    .legend i.res { background: rgba(255,82,82,0.4); }
+
+    /* Capture + test areas */
+    .dual { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+    @media (max-width: 620px) { .dual { grid-template-columns: 1fr; } }
+    .drop {
+      border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px;
+      padding: 16px; text-align: center; cursor: text; transition: all 0.2s ease;
+      outline: none;
+    }
+    .drop:focus, .drop.focused {
+      border-color: rgba(0,212,170,0.5); background: rgba(0,212,170,0.05);
+    }
+    .drop .dt { font-size: 12px; font-weight: 600; color: #ccc; margin-bottom: 4px; }
+    .drop .dh { font-size: 11px; color: var(--faint); }
+    .drop.ok { border-color: var(--accent); background: rgba(0,212,170,0.1); }
+    .drop.ok .dt { color: var(--accent); }
+    .drop.fail { border-color: rgba(255,82,82,0.5); background: rgba(255,82,82,0.06); }
+    .drop.fail .dt { color: var(--danger); }
+
+    /* Conflict / warning panel */
+    .warn {
+      margin-top: 16px; border-radius: 12px; padding: 14px 16px;
+      font-size: 13px; display: none;
+    }
+    .warn.show { display: block; }
+    .warn.error { background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.3); }
+    .warn.soft { background: rgba(255,180,0,0.07); border: 1px solid rgba(255,180,0,0.3); }
+    .warn.good { background: rgba(0,212,170,0.07); border: 1px solid rgba(0,212,170,0.3); }
+    .warn .w-title { font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .warn.error .w-title { color: var(--danger); }
+    .warn.soft .w-title { color: #ffb400; }
+    .warn.good .w-title { color: var(--accent); }
+    .warn .w-body { color: #ccc; font-size: 12px; }
+    .warn .w-body b { color: #fff; }
+
+    .resolve { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .mini-btn {
+      font-family: inherit; font-size: 11px; font-weight: 600;
+      padding: 7px 12px; border-radius: 8px; cursor: pointer;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: #ddd; transition: all 0.15s ease;
+    }
+    .mini-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .mini-btn.accent { background: rgba(0,212,170,0.15); border-color: rgba(0,212,170,0.4); color: var(--accent); }
+    .mini-btn.accent:hover { background: rgba(0,212,170,0.25); }
+
+    .suggest-label { font-size: 11px; color: var(--muted); margin: 16px 0 8px; }
+    .suggest-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Force + save */
+    .force-row {
+      display: flex; align-items: center; gap: 9px; margin-top: 18px;
+      font-size: 12px; color: var(--muted); cursor: pointer; user-select: none;
+    }
+    .force-row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+    .actions-bar { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      font-family: inherit; font-weight: 600; font-size: 13px;
+      padding: 12px 22px; border-radius: 10px; cursor: pointer;
+      border: 1px solid transparent; transition: all 0.15s ease;
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      color: #04241d; box-shadow: 0 4px 15px rgba(0,212,170,0.25);
+    }
+    .btn.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,212,170,0.35); }
+    .btn.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+    .btn.ghost { background: transparent; border-color: rgba(255,255,255,0.12); color: var(--muted); }
+    .btn.ghost:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .btn.danger-ghost { background: transparent; border-color: rgba(255,82,82,0.25); color: #b76; }
+    .btn.danger-ghost:hover { background: rgba(255,82,82,0.1); border-color: rgba(255,82,82,0.4); color: var(--danger); }
+
+    .save-note { font-size: 12px; color: var(--accent); opacity: 0; transition: opacity 0.3s ease; margin-left: 4px; }
+    .save-note.show { opacity: 1; }
+
+    /* Footer */
+    .footer {
+      margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--card-border);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .footer .os-link {
+      background: none; border: none; padding: 0; cursor: pointer;
+      font-family: inherit; font-size: 13px; color: var(--accent); text-align: left;
+    }
+    .footer .os-link:hover { text-decoration: underline; }
+    .footer .os-note { font-size: 11px; color: var(--faint); max-width: 640px; }
+
+    .placeholder { color: var(--faint); font-size: 13px; padding: 30px 10px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="logo">⌨</div>
+      <div>
+        <div class="title">Keyboard Shortcuts</div>
+        <div class="subtitle">Set the in-page keys that control YouTube Speed Trainer</div>
+      </div>
+      <div class="layout-switch">
+        <span class="lbl">Keyboard</span>
+        <div class="seg" id="layout-seg">
+          <button data-layout="win" type="button">Windows / Linux</button>
+          <button data-layout="mac" type="button">Mac</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step strip (#7.20) -->
+    <div class="steps" id="steps">
+      <div class="step" data-step="1"><span class="num">1</span> Pick an action</div>
+      <div class="step" data-step="2"><span class="num">2</span> Choose keys</div>
+      <div class="step" data-step="3"><span class="num">3</span> Check conflicts</div>
+      <div class="step" data-step="4"><span class="num">4</span> Test</div>
+      <div class="step" data-step="5"><span class="num">5</span> Save</div>
+    </div>
+
+    <div class="grid">
+      <!-- Actions panel (#7.16) -->
+      <div class="card">
+        <h2>Actions</h2>
+        <div class="help">Choose which command to configure.</div>
+        <div id="actions-list"></div>
+      </div>
+
+      <!-- Editor -->
+      <div class="card">
+        <div id="editor">
+          <div class="placeholder" id="editor-empty">
+            Select an action on the left to start assigning keys.
+          </div>
+
+          <div id="editor-body" style="display:none;">
+            <div class="editor-head">
+              <h2 style="margin:0;">Editing</h2>
+              <div class="now-editing">Now editing: <strong id="editing-name">—</strong></div>
+            </div>
+            <div class="help" id="editing-desc"></div>
+
+            <!-- Chips (#7.7) -->
+            <div class="chips" id="chips"></div>
+
+            <!-- Visual keyboard (#7.1, #7.2, #7.17) -->
+            <div class="kbd-wrap">
+              <div class="keyboard" id="keyboard"></div>
+            </div>
+            <div class="legend">
+              <span><i class="this"></i> This action</span>
+              <span><i class="oth"></i> Used by another action</span>
+              <span><i class="res"></i> Reserved combo</span>
+              <span style="color:#666;">Tip: click modifiers (Ctrl/Alt/Shift) then a key.</span>
+            </div>
+
+            <!-- Capture + Test (#7.6, #7.9) -->
+            <div class="dual">
+              <div class="drop" id="capture" tabindex="0">
+                <div class="dt">🎯 Press keys to capture</div>
+                <div class="dh">Click here, then physically press your combo</div>
+              </div>
+              <div class="drop" id="test" tabindex="0">
+                <div class="dt">✅ Test it</div>
+                <div class="dh">Click here and press your combo to verify</div>
+              </div>
+            </div>
+
+            <!-- Conflict / warning (#7.10, #7.11) -->
+            <div class="warn" id="warn">
+              <div class="w-title" id="warn-title"></div>
+              <div class="w-body" id="warn-body"></div>
+              <div class="resolve" id="warn-resolve"></div>
+            </div>
+
+            <!-- Suggestions (#7.12) -->
+            <div id="suggest-block" style="display:none;">
+              <div class="suggest-label">Conflict-free suggestions — apply with one click:</div>
+              <div class="suggest-row" id="suggest-row"></div>
+            </div>
+
+            <!-- Force (#7.14) -->
+            <label class="force-row">
+              <input type="checkbox" id="force"> Force shortcut (save anyway despite a soft conflict)
+            </label>
+
+            <!-- Save (#7.15) -->
+            <div class="actions-bar">
+              <button class="btn primary" id="btn-save" type="button">Save shortcut</button>
+              <button class="btn ghost" id="btn-clear" type="button">Unassign</button>
+              <span class="save-note" id="save-note">Saved ✓ Applied to open YouTube tabs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="actions-bar" style="margin-top:0;">
+        <button class="btn danger-ghost" id="btn-reset-defaults" type="button">↺ Reset all to defaults</button>
+      </div>
+      <button class="os-link" id="os-shortcuts" type="button">⚙ Open Chrome's global shortcut settings →</button>
+      <div class="os-note">
+        That page (<code>chrome://extensions/shortcuts</code>) sets Chrome's OS-level global commands.
+        This page instead configures the extension's in-page shortcuts, which work while a YouTube tab is focused.
+      </div>
+    </div>
+  </div>
+
+  <script src="shortcuts.js"></script>
+</body>
+</html>

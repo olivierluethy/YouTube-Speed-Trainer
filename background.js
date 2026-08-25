@@ -56,7 +56,9 @@ chrome.runtime.onInstalled.addListener((details) => {
       currentSpeed: 1.0,
       increment: 0.05,
       timeThreshold: 600,
-      watchedTime: 0
+      watchedTime: 0,
+      autoProgressionEnabled: true,
+      customStepSizes: [0.05, 0.1, 0.2]
     });
   }
 });

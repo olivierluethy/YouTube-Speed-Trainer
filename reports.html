@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Speed Trainer — Progress Reports</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-card: rgba(255,255,255,0.03);
+      --bg-card-2: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.15);
+      --teal: #00d4aa;
+      --teal-dim: #00a080;
+      --red: #ff5252;
+      --amber: #ffb454;
+      --text: #e0e0e0;
+      --muted: #888;
+      --muted-2: #555;
+    }
+
+    html, body { max-width: 100%; overflow-x: hidden; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(165deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .page { max-width: 1080px; margin: 0 auto; padding: 28px 24px 80px; }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dim) 100%);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 18px rgba(0,212,170,0.3);
+      flex-shrink: 0;
+    }
+    .brand { margin-right: auto; }
+    .brand .title { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.4px; }
+    .brand .subtitle { font-size: 12px; color: var(--muted-2); margin-top: 2px; }
+
+    .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .month-select {
+      appearance: none;
+      background: var(--bg-card-2);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px; font-weight: 600;
+      padding: 9px 34px 9px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2300d4aa' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    .month-select:focus { outline: none; border-color: rgba(0,212,170,0.5); }
+
+    .btn-print {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dim) 100%);
+      color: #06231d;
+      border: none;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px; font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 9px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,212,170,0.3);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-print:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(0,212,170,0.4); }
+    .btn-print:active { transform: translateY(0); }
+
+    /* ---- Print header (only shown in print) ---- */
+    .print-only { display: none; }
+
+    /* ---- Section scaffolding ---- */
+    section { margin-bottom: 30px; }
+    .section-head {
+      display: flex; align-items: baseline; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .section-head h2 {
+      font-size: 15px; font-weight: 700; color: #fff;
+      text-transform: uppercase; letter-spacing: 1.2px;
+    }
+    .section-head .hint { font-size: 12px; color: var(--muted-2); }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    /* ---- Hero / time saved ---- */
+    .hero {
+      background: linear-gradient(135deg, rgba(0,212,170,0.12) 0%, rgba(0,160,128,0.05) 100%);
+      border: 1px solid rgba(0,212,170,0.25);
+      border-radius: 18px;
+      padding: 26px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero .kicker {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+      color: var(--teal); margin-bottom: 8px;
+    }
+    .hero .big {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(40px, 8vw, 60px);
+      font-weight: 700; color: #fff; line-height: 1;
+      text-shadow: 0 0 40px rgba(0,212,170,0.35);
+    }
+    .hero .big span { color: var(--teal); }
+    .hero .sub { font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+    /* ---- Stat tiles ---- */
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .tile {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .tile .label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .tile .value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px; font-weight: 700; color: #fff; line-height: 1.1;
+    }
+    .tile .value span { font-size: 14px; color: var(--teal); }
+    .tile .foot { font-size: 11px; color: var(--muted-2); margin-top: 6px; }
+
+    /* ---- Charts ---- */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .chart-card { display: flex; flex-direction: column; }
+    .chart-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .chart-desc { font-size: 11px; color: var(--muted-2); margin-bottom: 12px; }
+    .chart-scroll { width: 100%; overflow-x: auto; }
+    .chart-scroll svg { display: block; width: 100%; height: auto; min-width: 280px; }
+    .chart-empty {
+      font-size: 12px; color: var(--muted-2);
+      padding: 40px 12px; text-align: center;
+    }
+
+    /* ---- Goal / target control ---- */
+    .goal-control {
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .target-row {
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    }
+    .target-readout {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 34px; font-weight: 700; color: #fff;
+      min-width: 120px;
+    }
+    .target-readout span { font-size: 18px; color: var(--teal); }
+    .slider-wrap { flex: 1; min-width: 220px; }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.12);
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 12px rgba(0,212,170,0.6);
+      cursor: pointer; border: none;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--teal); border: none;
+      box-shadow: 0 0 12px rgba(0,212,170,0.6);
+      cursor: pointer;
+    }
+    .slider-scale { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted-2); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    /* ---- Progress bar ---- */
+    .progress-wrap { margin-top: 4px; }
+    .progress-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .progress-top .lab { font-size: 12px; color: var(--muted); }
+    .progress-top .pct { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: var(--teal); }
+    .bar { height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--teal), var(--teal-dim)); border-radius: 5px; transition: width 0.4s ease; }
+    .progress-ends { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted-2); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+
+    /* ---- Forecast layout ---- */
+    .forecast-grid {
+      display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px;
+    }
+    @media (max-width: 720px) { .forecast-grid { grid-template-columns: 1fr; } }
+
+    .eta-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: baseline; margin: 14px 0; }
+    .eta-block .num { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; color: #fff; }
+    .eta-block .lab { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 5px 11px; border-radius: 20px;
+      text-transform: uppercase;
+    }
+    .badge.conf-high { background: rgba(0,212,170,0.15); color: var(--teal); border: 1px solid rgba(0,212,170,0.35); }
+    .badge.conf-medium { background: rgba(255,180,84,0.13); color: var(--amber); border: 1px solid rgba(255,180,84,0.35); }
+    .badge.conf-low { background: rgba(136,136,136,0.13); color: var(--muted); border: 1px solid rgba(136,136,136,0.3); }
+    .badge.ok { background: rgba(0,212,170,0.15); color: var(--teal); border: 1px solid rgba(0,212,170,0.35); }
+    .badge.warn { background: rgba(255,82,82,0.13); color: var(--red); border: 1px solid rgba(255,82,82,0.35); }
+
+    .explain { font-size: 13px; color: var(--muted); margin-top: 12px; line-height: 1.6; }
+    .disclaimer {
+      font-size: 11px; color: var(--muted-2);
+      margin-top: 12px; padding: 10px 12px;
+      background: rgba(255,255,255,0.02);
+      border-left: 2px solid var(--teal-dim);
+      border-radius: 6px;
+    }
+
+    /* ---- required progress table ---- */
+    .req-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .req-table th, .req-table td {
+      text-align: left; padding: 9px 10px; font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .req-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; font-size: 10px; }
+    .req-table td { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+    .req-table .verdict-ok { color: var(--teal); }
+    .req-table .verdict-no { color: var(--red); }
+
+    /* ---- scenario cards ---- */
+    .scenario-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;
+    }
+    .scenario {
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .scenario .name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .scenario .tag { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+    .scenario .eta { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--teal); }
+    .scenario .etadate { font-size: 11px; color: var(--muted-2); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+    .scenario.highlight { border-color: rgba(0,212,170,0.35); background: rgba(0,212,170,0.06); }
+
+    /* ---- lists (history, recovery, plan) ---- */
+    .item-list { display: flex; flex-direction: column; gap: 8px; }
+    .list-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 11px 13px;
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px; color: var(--text);
+    }
+    .list-item .ico { flex-shrink: 0; font-size: 15px; line-height: 1.4; }
+    .list-item.plan { border-left: 3px solid var(--teal); }
+
+    .history-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 13px;
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .history-row .when { font-size: 11px; color: var(--muted-2); font-family: 'JetBrains Mono', monospace; }
+    .history-row .meta { font-size: 12px; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+    .history-row .delay { font-size: 11px; font-weight: 700; color: var(--red); }
+    .history-row .improve { font-size: 11px; font-weight: 700; color: var(--teal); }
+
+    .empty-note { font-size: 12px; color: var(--muted-2); padding: 6px 0; }
+
+    /* ---- global fresh-install empty state ---- */
+    .fresh {
+      text-align: center; padding: 60px 24px;
+    }
+    .fresh .icon { font-size: 48px; margin-bottom: 14px; }
+    .fresh h2 { font-size: 20px; color: #fff; margin-bottom: 8px; }
+    .fresh p { font-size: 14px; color: var(--muted); max-width: 440px; margin: 0 auto; }
+
+    .disabled-veil { opacity: 0.45; pointer-events: none; filter: grayscale(0.4); }
+
+    /* ---- speed drop list ---- */
+    .drops-scroll { max-height: 244px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .drop-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px;
+      background: rgba(255,82,82,0.06);
+      border: 1px solid rgba(255,82,82,0.15);
+      border-radius: 8px;
+    }
+    .drop-item .trans { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #ccc; white-space: nowrap; }
+    .drop-item .trans .arrow { color: #666; margin: 0 3px; }
+    .drop-item .delta { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--red); white-space: nowrap; }
+    .drop-item .info { flex: 1; min-width: 0; }
+    .drop-item .vtitle { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .drop-item .vwhen { font-size: 10px; color: var(--muted-2); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+    /* ---- per-video table ---- */
+    .vid-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+    .vid-table th, .vid-table td {
+      text-align: left; padding: 10px 12px; font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .vid-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; font-size: 10px; }
+    .vid-table td.num { font-family: 'JetBrains Mono', monospace; color: var(--text); white-space: nowrap; }
+    .vid-table td.saved { color: var(--teal); font-weight: 600; }
+    .vid-table td.vname { color: #fff; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vid-table tr:last-child td { border-bottom: none; }
+
+    /* =====================================================
+       PRINT STYLESHEET
+       ===================================================== */
+    @media print {
+      @page { margin: 14mm; }
+      html, body {
+        background: #fff !important;
+        color: #14141c !important;
+      }
+      .page { max-width: 100%; padding: 0; }
+      /* hide interactive chrome */
+      .controls, .btn-print, .month-select, input[type="range"], .slider-scale { display: none !important; }
+      .print-only { display: block !important; }
+
+      .topbar { border-bottom: 2px solid #ddd; }
+      .brand .title, .brand .subtitle { color: #14141c; }
+      .section-head h2 { color: #14141c; }
+      .section-head .hint, .chart-desc, .tile .foot, .hero .sub { color: #555; }
+
+      .card, .tile, .scenario, .list-item, .history-row {
+        background: #fafafa !important;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+      }
+      .hero {
+        background: #f0fdf9 !important;
+        border: 1px solid #9fe4d2 !important;
+      }
+      .hero .kicker, .hero .big span, .brand-accent { color: #00806a !important; }
+      .hero .big, .tile .value, .target-readout, .eta-block .num, .scenario .eta { color: #14141c !important; }
+      .tile .value span, .target-readout span, .progress-top .pct, .scenario .eta { color: #00806a !important; }
+      .chart-title, .scenario .name, .list-item, .history-row .meta { color: #14141c !important; }
+      .explain, .tile .label, .eta-block .lab { color: #444 !important; }
+      section { break-inside: avoid; }
+      /* recolor SVG for print via CSS custom props (set on the svg) */
+      svg text { fill: #555 !important; }
+      .disclaimer { background: #f5f5f5; color: #555; }
+      .badge { border: 1px solid #bbb !important; }
+
+      /* new sections */
+      .drops-scroll { max-height: none !important; overflow: visible !important; }
+      .drop-item { background: #fdf3f3 !important; border: 1px solid #eccaca !important; }
+      .drop-item .trans, .drop-item .vtitle { color: #14141c !important; }
+      .drop-item .delta { color: #c0392b !important; }
+      .vid-table td.vname { color: #14141c !important; }
+      .vid-table td.num { color: #333 !important; }
+      .vid-table td.saved { color: #00806a !important; }
+      .vid-table th { color: #555 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="logo">⚡</div>
+      <div class="brand">
+        <div class="title">Progress Report</div>
+        <div class="subtitle">YouTube Speed Trainer — analytics &amp; goal forecasting</div>
+      </div>
+      <div class="controls">
+        <select class="month-select" id="month-select" aria-label="Report period"></select>
+        <button class="btn-print" id="btn-print">⬇ Download PDF</button>
+      </div>
+      <div class="print-only" id="print-meta"></div>
+    </div>
+
+    <!-- Fresh-install empty state (shown instead of everything) -->
+    <div id="fresh-state" class="fresh" style="display:none">
+      <div class="icon">📊</div>
+      <h2>No watch data yet</h2>
+      <p>Watch some YouTube videos with the Speed Trainer running and your progress
+      report — time saved, speed trends, and goal forecasts — will appear here.</p>
+    </div>
+
+    <!-- Main report body -->
+    <div id="report-body" style="display:none">
+
+      <!-- Time saved hero -->
+      <section>
+        <div class="hero">
+          <div class="kicker" id="hero-kicker">Time saved</div>
+          <div class="big" id="hero-value">0<span>s</span></div>
+          <div class="sub" id="hero-sub"></div>
+        </div>
+      </section>
+
+      <!-- Stat tiles -->
+      <section>
+        <div class="section-head"><h2>Overview</h2><span class="hint" id="overview-hint"></span></div>
+        <div class="tiles" id="tiles"></div>
+      </section>
+
+      <!-- Trend charts -->
+      <section>
+        <div class="section-head"><h2>Trends</h2><span class="hint">How your savings and speed have moved over time</span></div>
+        <div class="chart-grid">
+          <div class="card chart-card">
+            <div class="chart-title" id="chart1-title">Time saved</div>
+            <div class="chart-desc" id="chart1-desc"></div>
+            <div class="chart-scroll" id="chart-saved"></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-title" id="chart2-title">Average playback speed</div>
+            <div class="chart-desc" id="chart2-desc"></div>
+            <div class="chart-scroll" id="chart-speed"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Speed drop history (#3.5, #3.6) -->
+      <section>
+        <div class="section-head"><h2>Speed drops</h2><span class="hint">When you manually slowed down — magnitude over time</span></div>
+        <div class="chart-grid">
+          <div class="card chart-card">
+            <div class="chart-title">Drop magnitude over time</div>
+            <div class="chart-desc" id="drops-chart-desc"></div>
+            <div class="chart-scroll" id="chart-drops"></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-title">Recent drops</div>
+            <div class="chart-desc" id="drops-list-desc">Each time you eased off the speed</div>
+            <div class="drops-scroll" id="drops-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Per-video breakdown (#3.6, #3.7) -->
+      <section>
+        <div class="section-head"><h2>Per-video breakdown</h2><span class="hint">Where the trainer saved you the most time</span></div>
+        <div class="card">
+          <div class="chart-desc" id="videos-caption" style="margin-bottom:12px"></div>
+          <div style="overflow-x:auto">
+            <table class="vid-table" id="video-table"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Goals & forecasting -->
+      <section id="goals-section">
+        <div class="section-head"><h2>Goals &amp; Forecast</h2><span class="hint">Set a target speed and see a data-driven projection</span></div>
+
+        <!-- Target control -->
+        <div class="card goal-control" style="margin-bottom:16px">
+          <div class="target-row">
+            <div class="target-readout"><span>Target</span><br><span id="target-x" style="font-size:34px;color:#fff">2.00</span><span>×</span></div>
+            <div class="slider-wrap">
+              <input type="range" id="target-slider" min="1.25" max="4.0" step="0.05" value="2.0">
+              <div class="slider-scale"><span>1.25×</span><span>2.0×</span><span>3.0×</span><span>4.0×</span></div>
+            </div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-top">
+              <span class="lab">Progress toward target</span>
+              <span class="pct" id="progress-pct">0%</span>
+            </div>
+            <div class="bar"><div class="bar-fill" id="progress-fill" style="width:0%"></div></div>
+            <div class="progress-ends"><span id="progress-cur">1.00×</span><span id="progress-tgt">2.00×</span></div>
+          </div>
+        </div>
+
+        <!-- Forecast + required progress -->
+        <div class="forecast-grid">
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span class="badge" id="feasible-badge">—</span>
+              <span class="badge" id="confidence-badge">—</span>
+            </div>
+            <div class="eta-row">
+              <div class="eta-block"><div class="num" id="eta-date">—</div><div class="lab">Est. completion</div></div>
+              <div class="eta-block"><div class="num" id="eta-days">—</div><div class="lab">Days away</div></div>
+              <div class="eta-block"><div class="num" id="eta-perday">—</div><div class="lab">Gain / active day</div></div>
+            </div>
+            <div class="explain" id="forecast-explain"></div>
+            <div class="disclaimer" id="forecast-disclaimer">⚠ This is an estimate based on your recent trend, not a guarantee. Real progress depends on how you keep watching.</div>
+          </div>
+
+          <div class="card">
+            <div class="chart-title" style="margin-bottom:10px">Required progress</div>
+            <div class="chart-desc" style="margin-bottom:8px">Average-speed gain per active day needed to hit your target within each window, vs. your current pace.</div>
+            <div style="overflow-x:auto">
+              <table class="req-table" id="req-table"></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scenarios -->
+      <section id="scenario-section">
+        <div class="section-head"><h2>Scenarios</h2><span class="hint">Illustrative — how different habits change your ETA</span></div>
+        <div class="scenario-grid" id="scenarios"></div>
+      </section>
+
+      <!-- Recovery options -->
+      <section id="recovery-section" style="display:none">
+        <div class="section-head"><h2>Getting back on track</h2><span class="hint">Concrete changes to close the gap</span></div>
+        <div class="card"><div class="item-list" id="recovery-list"></div></div>
+      </section>
+
+      <!-- Actionable plan -->
+      <section>
+        <div class="section-head"><h2>Your action plan</h2><span class="hint">Next steps drawn from your data</span></div>
+        <div class="card"><div class="item-list" id="plan-list"></div></div>
+      </section>
+
+      <!-- Goal history -->
+      <section>
+        <div class="section-head"><h2>Goal history</h2><span class="hint">How your predicted completion date has shifted</span></div>
+        <div class="card"><div class="item-list" id="history-list"></div></div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="analytics.js"></script>
+  <script src="reports.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Speed Trainer",
-  "version": "1.5",
+  "version": "1.6",
   "description": "Train yourself to watch YouTube faster with time-based progression",
   "permissions": ["storage", "activeTab", "tabs", "scripting"],
   "host_permissions": ["https://www.youtube.com/*", "https://youtube.com/*", "https://m.youtube.com/*"],
@@ -49,7 +49,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*", "https://youtube.com/*", "https://m.youtube.com/*"],
-      "js": ["content.js"],
+      "js": ["analytics.js", "content.js"],
       "run_at": "document_idle"
     }
   ]
