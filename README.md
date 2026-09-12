@@ -1,4 +1,16 @@
-# YouTube Speed Trainer
+<div align="center">
+  <img src="icon128.png" alt="YouTube Speed Trainer logo" width="140" />
+  <h1>YouTube Speed Trainer</h1>
+  <p><b>Train yourself to watch YouTube faster — one level at a time.</b><br/>A Manifest V3 Chrome extension with time-based speed progression, analytics, goal forecasting, and achievements.</p>
+  <p>
+    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+    <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4285F4?logo=googlechrome&logoColor=white">
+    <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?logo=javascript&logoColor=black">
+    <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-34A853?logo=googlechrome&logoColor=white">
+  </p>
+</div>
+
+---
 
 A Chrome extension that helps you gradually train yourself to watch YouTube videos at higher speeds.
 
@@ -163,3 +175,13 @@ This extension:
 ---
 
 Made with ⚡ for faster learning
+
+
+## License
+
+Released under the [MIT License](LICENSE) © 2026 Olivier Lüthy. You're free to use, modify and distribute this
+software, including commercially, as long as the copyright notice and license are included.
+
+## Author
+
+Built by **Olivier Lüthy** — [GitHub](https://github.com/olivierluethy).
